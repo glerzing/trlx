@@ -11,6 +11,7 @@ import ray
 import torch
 from accelerate import Accelerator  # type: ignore
 from ray.air import session
+from peft import get_peft_config, get_peft_model
 from rich.console import Console
 from rich.table import Table
 from transformers import AutoTokenizer
@@ -32,8 +33,6 @@ from trlx.utils.modeling import (
     freeze_bottom_causal_layers,
     freeze_bottom_seq2seq_layers,
     gather_dict,
-    get_delta_model_class,
-    parse_delta_kwargs,
 )
 
 logger = logging.get_logger(__name__)
@@ -154,18 +153,15 @@ class AccelerateRLTrainer(BaseRLTrainer):
             freeze_bottom_seq2seq_layers(model.base_model, self.config.model.num_layers_unfrozen)
         else:
             freeze_bottom_causal_layers(model.base_model, self.config.model.num_layers_unfrozen)
-        # Set the delta tuning strategies
-        if self.config.model.delta_kwargs is not None:
-            delta_type, delta_kwargs = parse_delta_kwargs(
-                model.base_model.config,
-                self.config.model.delta_kwargs,
-                self.config.model.num_layers_unfrozen,
-            )
-            delta_model_class = get_delta_model_class(delta_type)
-            delta_model = delta_model_class(model.base_model, **delta_kwargs)
-            delta_model.freeze_module(exclude=["deltas"], set_state_dict=True)
+
+        # Set the parameter-efficient tuning strategy
+        if self.config.model.peft_kwargs is not None:
+            peft_config = get_peft_config(self.config.model.peft_kwargs)
+            model.base_model = get_peft_model(model.base_model, peft_config)
+
             if self.accelerator.is_main_process:
-                delta_model.log()
+                model.base_model.print_trainable_parameters()
+
         return model
 
     def setup_optimizer(self):

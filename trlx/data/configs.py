@@ -49,25 +49,32 @@ class ModelConfig:
         -1 means all layers are unfrozen.
     :type num_layers_unfrozen: int
 
-    :param delta_kwargs: Keyword arguments for instantiating OpenDelta models for delta-tuning.
-        Follow the `OpenDelta.AutoDeltaConfig` specification, e.g. for LoRA style tuning, set
-        the `delta_type` to `lora` and include the model specific hyper-parameters (e.g. `lora_r`)
-            {"delta_type": "lora", "modified_modules": "all", "lora_r": 8, "lora_alpha": 16, "lora_dropout": 0.0}
+    :param peft_kwargs: arguments used by the peft (Parameter Efficient Fine-Tuning) library.
+        Here is an example of LORA configuration:
+            {"peft_type": "LORA", "target_modules": "all", "r": 8, "lora_alpha": 32, "lora_dropout": 0.1}
         or in YAML format:
-            delta_kwargs:
-                delta_type: lora
-                modified_modules: "all"
-                lora_r: 8
-                lora_alpha: 16
-                lora_dropout: 0.0
-        See: https://opendelta.readthedocs.io/en/latest/modules/auto_delta.html#opendelta.auto_delta.AutoDeltaConfig
-    :type delta_kwargs: Optional[Dict[str, Any]]
+            peft_kwargs:
+                peft_type: "LORA"
+                target_modules: "all"
+                r: 8
+                lora_alpha: 32
+                lora_dropout: 0.1
+
+        Supported peft types include "LORA", "PROMPT_TUNING", "P_TUNING" and "PREFIX_TUNING"
+        If "target_modules" is set to "attention", "mlp" or "all", trlx will automatically
+        choose the corresponding names for the given model architecture.
+
+        Some examples of peft configurations can be found here :
+        https://github.com/huggingface/peft/blob/main/src/peft/peft_model.py
+
+        (this was previously done with OpenDelta, which is no longer supported)
+    :type peft_kwargs: Optional[Dict[str, Any]]
     """
 
     model_path: str
     model_arch_type: str = "causal"
     num_layers_unfrozen: int = -1
-    delta_kwargs: Optional[Dict[str, Any]] = None
+    peft_kwargs: Optional[Dict[str, Any]] = None
 
     @classmethod
     def from_dict(cls, config: Dict[str, Any]):
