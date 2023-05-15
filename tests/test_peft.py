@@ -230,8 +230,3 @@ class TestPpoPeftLora(unittest.TestCase):
                     output2 = self.model.generate(**self.inputs, temperature=0.0,
                                                   pad_token_id=self.tokenizer.eos_token_id)
                     self.assertTrue(torch.equal(output1, output2))
-
-# test = TestPpoPeftLora()
-# test.setUp()
-# test.test_save_load()
-# raise
