@@ -18,6 +18,7 @@
 
 import inspect
 import json
+import logging
 import os
 from typing import Any, Dict, List, Optional, Union
 
@@ -26,6 +27,7 @@ import torch.nn as nn
 import transformers
 from huggingface_hub import hf_hub_download
 
+logger = logging.getLogger(__name__)
 
 class PreTrainedModelWrapper(nn.Module, transformers.utils.PushToHubMixin):
     """A wrapper around `transformers.PreTrainedModel`
@@ -57,6 +59,8 @@ class PreTrainedModelWrapper(nn.Module, transformers.utils.PushToHubMixin):
         self.base_model = base_model
         # cache `forward` args for general use (avoids incompatible args across architectures)
         self.forward_kwargs = inspect.getfullargspec(self.base_model.forward).args
+        self.peft_config = None
+        self.peft_type = None
 
     @classmethod
     def _split_kwargs(cls, kwargs: Dict[str, Any]):
@@ -98,6 +102,7 @@ class PreTrainedModelWrapper(nn.Module, transformers.utils.PushToHubMixin):
         cls,
         pretrained_model_name_or_path: Union[str, transformers.PreTrainedModel],
         revision=None,
+        peft_adapter_path=None,
         *model_args,
         **kwargs,
     ):
@@ -109,6 +114,14 @@ class PreTrainedModelWrapper(nn.Module, transformers.utils.PushToHubMixin):
         Args:
             pretrained_model_name_or_path (str or `transformers.PreTrainedModel`):
                 The identifier of the pretrained model to load or the pretrained model itself.
+            revision (str, *optional*): specific Git branch, tag or commit hash.
+            peft_adapter_path (str, *optional*): If using peft, the path to the adapter. It can be
+                either a local path or the model id of an adapter hosted on the HuggingFace Hub. For
+                additional argument to give th PeftModel.from_pretrained (such as adapter_name or subdir),
+                use the dict peft_from_pretrained_kwargs. There is also a dict argument peft_int8_kwargs for
+                specific options with 8-bit models (in particular use_gradient_checkpointing).
+                The peft adapter directory must contain 2 files: a config file ("adapter_config.json" by default),
+                and a file containing the weights ("adapter_config.json" by default).
             *model_args (sequence of positional arguments, *optional*):
                 All remaining positional arguments will be passed to the `_auto_model_parent_class`.
             **kwargs (dict, *optional*):
@@ -119,8 +132,12 @@ class PreTrainedModelWrapper(nn.Module, transformers.utils.PushToHubMixin):
         NOTE: You must pass in arguments specific to the wrapped model as keyword arguments.
         """
         if kwargs is not None:
+            peft_from_pretrained_kwargs = kwargs.pop("peft_from_pretrained_kwargs", None)
+            peft_int8_kwargs = kwargs.pop("peft_int8_kwargs", None)
             wrapped_model_kwargs, from_pretrained_kwargs = cls._split_kwargs(kwargs)
         else:
+            peft_from_pretrained_kwargs = None
+            peft_int8_kwargs = {}
             from_pretrained_kwargs = {}
             wrapped_model_kwargs = {}
 
@@ -136,6 +153,28 @@ class PreTrainedModelWrapper(nn.Module, transformers.utils.PushToHubMixin):
                 f"Invalid type for `base_model_name_or_path`: {type(pretrained_model_name_or_path)}"
                 "Expected `str` or `transformers.PreTrainedModel`."
             )
+
+        if peft_adapter_path:
+            try:
+                import peft
+            except:
+                raise ModuleNotFoundError("Please install the `peft` package to use the peft_config option.")
+
+            base_model = peft.PeftModel.from_pretrained(
+                base_model,
+                peft_adapter_path,
+                **peft_from_pretrained_kwargs,
+            )
+
+            wrapped_model_kwargs["peft_config"] = base_model.config
+
+            if hasattr(from_pretrained_kwargs, "is_loaded_in_8bit") and from_pretrained_kwargs.is_loaded_in_8bit:
+                base_model = peft.prepare_model_for_int8_training(base_model,**peft_int8_kwargs)
+        else:
+            if os.path.exists(pretrained_model_name_or_path):
+                if "adapter_model.bin" in os.listdir(pretrained_model_name_or_path):
+                    logger.warning("WARNING: peft adapter detected but not loaded. "
+                                   "To load it, set the `peft_adapter_path` argument.")
 
         model = cls(base_model, **wrapped_model_kwargs)
 
@@ -202,6 +241,13 @@ class PreTrainedModelWrapper(nn.Module, transformers.utils.PushToHubMixin):
         if state_dict is None:
             state_dict = self.state_dict()
             kwargs["state_dict"] = state_dict
+
+        if self.peft_config:
+            # Only save the value head to reduce the memory size.
+            # raise # TODO: what about for ILQL and SFT ?
+            torch.save(self.v_head.state_dict(), os.path.join(args[0], "value_head.bin"))
+            # pop the `state_dict` from the kwargs to avoid silent bugs with `peft`
+            kwargs.pop("state_dict", None)
 
         return self.base_model.save_pretrained(*args, **kwargs)
 

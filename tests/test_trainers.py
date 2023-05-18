@@ -139,7 +139,7 @@ class TestAccelerateBaseTrainer(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmpdir:
             config = self.get_default_config()
             config.train.checkpoint_dir = tmpdir
-            config.model.peft_kwargs = {
+            config.model.peft_config = {
                 "peft_type": "LORA",
                 "task_type": "CAUSAL_LM",
                 "r": 8,
@@ -158,6 +158,8 @@ class TestAccelerateBaseTrainer(unittest.TestCase):
             if total_steps % interval != 0:
                 self.assertTrue(os.path.isdir(os.path.join(tmpdir, f"checkpoint_{total_steps}")))
             self.assertTrue(os.path.isdir(os.path.join(tmpdir, "best_checkpoint")))
+
+            # TODO: try resuming a checkpoint
 
     def test_accumulate_context(self):
         config = self.get_default_config()

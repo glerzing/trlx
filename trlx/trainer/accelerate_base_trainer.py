@@ -11,7 +11,6 @@ import ray
 import torch
 from accelerate import Accelerator  # type: ignore
 from ray.air import session
-from peft import get_peft_config, get_peft_model
 from rich.console import Console
 from rich.table import Table
 from transformers import AutoTokenizer
@@ -147,6 +146,20 @@ class AccelerateRLTrainer(BaseRLTrainer):
         """
         logger.info(f"Initializing model: {self.config.model.model_path}")
 
+        # Check that peft is installed and prepare the peft config
+        if self.config.model.peft_config is not None:
+            try:
+                import peft
+            except:
+                raise ModuleNotFoundError("Please install the `peft` package to use the peft_config option.")
+
+            if not isinstance(self.config.model.peft_config, peft.PeftConfig):
+                if not isinstance (self.config.model.peft_config, dict):
+                    raise ValueError(f"Invalid peft_config format {type(self.config.model.peft_config)}, "
+                                      "expected dict or peft.PeftConfig")
+
+                self.config.model.peft_config = peft.get_peft_config(self.config.model.peft_config)
+
         # Retrieves model equipped for ppo, ilql, etc
         model = self.get_arch(self.config)
         if self.config.model.model_arch_type == "seq2seq":
@@ -154,10 +167,10 @@ class AccelerateRLTrainer(BaseRLTrainer):
         else:
             freeze_bottom_causal_layers(model.base_model, self.config.model.num_layers_unfrozen)
 
-        # Set the parameter-efficient tuning strategy
-        if self.config.model.peft_kwargs is not None:
-            peft_config = get_peft_config(self.config.model.peft_kwargs)
-            model.base_model = get_peft_model(model.base_model, peft_config)
+        if self.config.model.peft_config is not None:
+            import peft
+            # Wrap the base model with a PeftModel
+            model.base_model = peft.get_peft_model(model.base_model, self.config.model.peft_config)
 
             if self.accelerator.is_main_process:
                 model.base_model.print_trainable_parameters()

@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from functools import reduce
 from typing import Optional, Tuple
 
-import deepspeed  # type: ignore
+# import deepspeed  # type: ignore
 import numpy as np
 import torch
 import torch.nn.functional as F
@@ -194,7 +194,7 @@ class ILQLHeads(nn.Module):
 
 
 class AutoModelForCausalLMWithILQLHeads(PreTrainedModelWrapper):
-    """An `AutoModel` class wrapper for `transformers` causal models wtih a language
+    """An `AutoModel` class wrapper for `transformers` causal models with a language
     modeling head and ILQL heads.
 
     References:
@@ -259,7 +259,7 @@ class AutoModelForCausalLMWithILQLHeads(PreTrainedModelWrapper):
         eos_token_id=None,
     ):
         """
-        Generates samples akin to hf's `.generate` but with custom logp prepossessing:
+        Generates samples akin to hf's `.generate` but with custom loop preprocessing:
         changing token probabilities as to how advantageous they would be
         according to value functions estimations.
         """
@@ -333,7 +333,7 @@ class AutoModelForCausalLMWithILQLHeads(PreTrainedModelWrapper):
     def post_init(self, state_dict):
         """
         We add the state dictionary of the ilql heads to the state dictionary of the wrapped model
-        by preprending the key with `ilql_heads.`. This function removes the `ilql_heads.` prefix from the
+        by prepending the key with `ilql_heads.`. This function removes the `ilql_heads.` prefix from the
         keys of the value head state dictionary.
         """
         for k in list(state_dict.keys()):
@@ -383,7 +383,7 @@ class AutoModelForSeq2SeqLMWithILQLHeads(PreTrainedModelWrapper):
     def post_init(self, state_dict):
         """
         We add the state dictionary of the ilql heads to the state dictionary of the wrapped model
-        by preprending the key with `ilql_heads.`. This function removes the `ilql_heads.` prefix from the
+        by prepending the key with `ilql_heads.`. This function removes the `ilql_heads.` prefix from the
         keys of the value head state dictionary.
         """
         for k in list(state_dict.keys()):

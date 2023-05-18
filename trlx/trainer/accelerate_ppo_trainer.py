@@ -122,18 +122,10 @@ class AcceleratePPOTrainer(AccelerateRLTrainer):
         if issubclass(type(config.model.model_path), transformers.PretrainedConfig):
             from_fn = model_class.from_config
 
-        if self.config.model.peft_kwargs:
-            peft_type = self.config.model.peft_kwargs["peft_type"]
-            if "modules_to_save" in self.config.model.peft_kwargs:
-                # In this special case we still need a frozen head, so do as if peft_type were None
-                peft_type = None
-        else:
-            peft_type = None
-
         return from_fn(
             config.model.model_path,
             num_layers_unfrozen=config.model.num_layers_unfrozen,
-            peft_type=peft_type,
+            peft_config=self.config.model.peft_config,
         )
 
     def loss(self, batch: PPORLBatch):

@@ -4,7 +4,6 @@ from copy import deepcopy
 from dataclasses import dataclass
 from typing import List, Optional, Tuple, Union
 
-from peft.utils.config import PeftType
 import numpy as np
 import torch
 import torch.nn as nn
@@ -262,7 +261,6 @@ class AutoModelForCausalLMWithValueHead(PreTrainedModelWrapper):
         base_model: transformers.PreTrainedModel,
     ):
         super().__init__(base_model)
-        self.peft_type = None
         self.v_head = make_head(hf_get_hidden_size(self.base_model.config), 1)
 
     def forward(
@@ -294,7 +292,7 @@ class AutoModelForCausalLMWithValueHead(PreTrainedModelWrapper):
         forward_kwargs["output_hidden_states"] = True
         forward_kwargs["return_dict"] = True
 
-        if self.peft_type == PeftType.PREFIX_TUNING:
+        if self.peft_type == "PREFIX_TUNING":
             # In this case peft redefines past_key_values, remove it to avoid an exception
             forward_kwargs.pop("past_key_values")
 
@@ -342,18 +340,20 @@ class AutoModelForCausalLMWithValueHead(PreTrainedModelWrapper):
 
 class AutoModelForCausalLMWithHydraValueHead(AutoModelForCausalLMWithValueHead):
     _supported_modules = ["v_head", "frozen_head"]
-    _supported_args = ["num_layers_unfrozen", "peft_type"]
+    _supported_args = ["num_layers_unfrozen", "peft_config"]
 
     def __init__(
         self,
         base_model: transformers.PreTrainedModel,
         *,
         num_layers_unfrozen: int = -1,
-        peft_type: Optional[str] = None,
+        peft_config: Optional[str] = None,
     ):
         super().__init__(base_model)
         self.num_layers_unfrozen = num_layers_unfrozen
-        self.peft_type = peft_type
+        self.peft_config = peft_config
+        self.peft_type = peft_config.peft_type if peft_config else None
+
         if self.num_layers_unfrozen > 0 and not self.peft_type:
             config = self.base_model.config
             branch_class = hf_get_branch_class(config)
@@ -1015,7 +1015,6 @@ class AutoModelForSeq2SeqLMWithValueHead(PreTrainedModelWrapper):
         base_model: transformers.PreTrainedModel,
     ):
         super().__init__(base_model)
-        self.peft_type = None
         self.v_head = make_head(hf_get_hidden_size(self.base_model.config), 1)
 
     def forward(
@@ -1057,7 +1056,7 @@ class AutoModelForSeq2SeqLMWithValueHead(PreTrainedModelWrapper):
         forward_kwargs["output_hidden_states"] = True
         forward_kwargs["return_dict"] = True
 
-        if self.peft_type == PeftType.PREFIX_TUNING:
+        if self.peft_type == "PREFIX_TUNING":
             # In this case peft redefines past_key_values, remove it to avoid an exception.
             forward_kwargs.pop("past_key_values")
 
@@ -1102,18 +1101,20 @@ class AutoModelForSeq2SeqLMWithValueHead(PreTrainedModelWrapper):
 
 class AutoModelForSeq2SeqLMWithHydraValueHead(AutoModelForSeq2SeqLMWithValueHead):
     _supported_modules = ["v_head", "frozen_head"]
-    _supported_args = ["num_layers_unfrozen", "peft_type"]
+    _supported_args = ["num_layers_unfrozen", "peft_config"]
 
     def __init__(
         self,
         base_model: transformers.PreTrainedModel,
         *,
         num_layers_unfrozen: int = -1,
-        peft_type: Optional[str] = None,
+        peft_config: Optional[str] = None,
     ):
         super().__init__(base_model)
         self.num_layers_unfrozen = num_layers_unfrozen
-        self.peft_type = peft_type
+        self.peft_config = peft_config
+        self.peft_type = peft_config.peft_type if peft_config else None # TODO: what about the LORA argument "modules_to_save" ?
+
         if self.num_layers_unfrozen > 0 and not self.peft_type:
             branch_class = T5Branch  # TODO: Add support for other model branches
             self.frozen_head = branch_class(
