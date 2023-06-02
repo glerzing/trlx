@@ -284,7 +284,7 @@ class AutoModelForCausalLMWithILQLHeads(PreTrainedModelWrapper):
         eos_token_id=None,
     ):
         """
-        Generates samples akin to hf's `.generate` but with custom loop preprocessing:
+        Generates samples akin to hf's `.generate` but with custom logp preprocessing:
         changing token probabilities as to how advantageous they would be
         according to value functions estimations.
         """
@@ -521,7 +521,7 @@ class AutoModelForSeq2SeqLMWithILQLHeads(PreTrainedModelWrapper):
         eos_token_id=None,
     ):
         """
-        Generates samples akin to hf's `.generate` but with custom logp prepossessing:
+        Generates samples akin to hf's `.generate` but with custom logp preprocessing:
         changing token probabilities as to how advantageous they would be
         according to value functions estimations.
         """
