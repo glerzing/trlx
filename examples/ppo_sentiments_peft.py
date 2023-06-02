@@ -50,16 +50,19 @@ def main(hparams={}):
         sentiments = list(map(get_positive_score, sentiment_fn(samples)))
         return sentiments
 
+    print("loading dataset")
     # Take few words off of movies reviews as prompts
     imdb = load_dataset("imdb", split="train+test")
     prompts = [" ".join(review.split()[:4]) for review in imdb["text"]]
 
+    print("starting training")
     trlx.train(
         reward_fn=reward_fn,
         prompts=prompts,
         eval_prompts=["I don't know much about Hungarian underground"] * 256,
         config=config,
     )
+    print("finished training")
 
 
 if __name__ == "__main__":
