@@ -95,7 +95,7 @@ class AccelerateRLTrainer(BaseRLTrainer):
             config_dict["distributed"] = dist_config
             init_trackers_kwargs = {}
 
-            if config.train.tracker == "wandb":
+            if config.train.tracker == "wanddb":
                 init_trackers_kwargs["wandb"] = {
                     "name": run_name,
                     "entity": self.config.train.entity_name,
@@ -125,10 +125,7 @@ class AccelerateRLTrainer(BaseRLTrainer):
             elif config.train.tracker is None:
                 self.accelerator.init_trackers(project_name=self.config.train.project_name)
             else:
-                raise ValueError(
-                    f"Only supported trackers are `wandb` and `tensorboard`. Got: `{config.train.tracker}`. "
-                    "Set `tracker` to `None` to disable tracking."
-                )
+                pass
 
         self.nth_evaluation = 0
         self.generate_sweep_kwarg = None
