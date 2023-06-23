@@ -487,3 +487,8 @@ class TestPeft(unittest.TestCase):
         self.assertEqual(new_nb_trainable_params, initial_nb_trainable_params)
 
         self.assertIsInstance(model_8bit.base_model.model.gpt_neox.layers[0].mlp.dense_h_to_4h, Linear8bitLt)
+
+        # Check that forward and generation work
+        self._create_inputs(model_id, CAUSAL)
+        model_8bit(**self.inputs)
+        model_8bit.generate(**self.inputs)
