@@ -70,7 +70,7 @@ class PreTrainedModelWrapper(nn.Module, transformers.utils.PushToHubMixin):
         super().__init__()
         self.base_model = base_model
         # cache `forward` args for general use (avoids incompatible args across architectures)
-        self.forward_kwargs = inspect.getfullargspec(self.base_model.forward).args
+        self._set_forward_kwargs()
         self.is_loaded_in_8bit = getattr(base_model, "is_loaded_in_8bit", False)
         self.peft_config = peft_config
         self.peft_type = peft_config.peft_type if peft_config else None
@@ -336,16 +336,21 @@ class PreTrainedModelWrapper(nn.Module, transformers.utils.PushToHubMixin):
         """Return the state_dict of the pretrained model."""
         raise NotImplementedError
 
-    def post_init(self, *args, **kwargs):
-        """Post initialization method. This method is called after the model is
-        instantiated and loaded from a checkpoint. It can be used to perform
-        additional operations such as loading the state_dict.
-        """
+    def _set_forward_kwargs(self):
         if self.peft_type:
             # Don't use the interface of the peft model,
             # use the interface of the underlying transformer model instead.
             # (peft adds 2 "base_model" layers)
             self.forward_kwargs = inspect.getfullargspec(self.base_model.base_model.base_model.forward).args
+        else:
+            self.forward_kwargs = inspect.getfullargspec(self.base_model.forward).args
+
+    def post_init(self, *args, **kwargs):
+        """Post initialization method. This method is called after the model is
+        instantiated and loaded from a checkpoint. It can be used to perform
+        additional operations such as loading the state_dict.
+        """
+        self._set_forward_kwargs()
 
     def get_compatible_forward_kwargs(self, **kwargs) -> Dict[str, Any]:
         """Filter out arguments not supported by the specific instance of
