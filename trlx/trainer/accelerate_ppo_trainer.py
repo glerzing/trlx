@@ -116,6 +116,7 @@ class AcceleratePPOTrainer(AccelerateRLTrainer):
             config.model.model_path,
             num_layers_unfrozen=config.model.num_layers_unfrozen,
             peft_config=self.config.model.peft_config,
+            **config.model.from_pretrained_kwargs,
         )
 
     def loss(self, batch: PPORLBatch):

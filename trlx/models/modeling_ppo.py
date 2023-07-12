@@ -266,7 +266,10 @@ class AutoModelForCausalLMWithValueHead(PreTrainedModelWrapper):
         peft_config=None,
     ):
         super().__init__(base_model, peft_config=peft_config)
-        self.v_head = make_head(hf_get_hidden_size(self.base_model.config), 1)
+        parameter = next(hf_get_lm_head(self.base_model).parameters())
+        dtype = parameter.dtype
+        device = parameter.device
+        self.v_head = make_head(hf_get_hidden_size(self.base_model.config), 1, dtype).to(device)
 
     def forward(
         self,
